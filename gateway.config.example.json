@@ -6,6 +6,19 @@
       "args": ["-y", "exa-mcp-server"],
       "env": { "EXA_API_KEY": "$EXA_API_KEY" },
       "autoActivate": false
+    },
+    {
+      "name": "my-local-service",
+      "command": "bun",
+      "args": ["run", "${HOME}/mcp-servers/my-service/src/index.ts"],
+      "autoActivate": false
+    },
+    {
+      "name": "my-remote-service",
+      "command": "ssh",
+      "args": ["user@host", "cd ~/project && bun run mcp-server.ts"],
+      "autoActivate": false,
+      "timeout": 180000
     }
   ]
 }

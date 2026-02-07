@@ -8,6 +8,12 @@ export function saveConfig(config: GatewayConfig): void {
   writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n");
 }
 
+function expandEnvVars(value: string): string {
+  return value.replace(/\$\{(\w+)\}|\$(\w+)/g, (_, a, b) => {
+    return process.env[a || b] ?? "";
+  });
+}
+
 export function loadConfig(): GatewayConfig {
   const raw = readFileSync(CONFIG_PATH, "utf-8");
   const config: GatewayConfig = JSON.parse(raw);
@@ -22,8 +28,10 @@ export function loadConfig(): GatewayConfig {
     }
     svc.autoActivate ??= false;
     svc.timeout ??= 30000;
-    svc.args ??= [];
-    svc.env ??= {};
+    svc.args = (svc.args ?? []).map(expandEnvVars);
+    svc.env = Object.fromEntries(
+      Object.entries(svc.env ?? {}).map(([k, v]) => [k, expandEnvVars(v)])
+    );
   }
 
   return config;

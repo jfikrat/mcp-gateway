@@ -54,7 +54,7 @@ export class ChildConnection {
   }
 
   async callTool(name: string, args?: Record<string, unknown>): Promise<CallToolResult> {
-    return await this.client.callTool({ name, arguments: args });
+    return await this.client.callTool({ name, arguments: args }, undefined, { timeout: 300_000 });
   }
 
   async ping(): Promise<boolean> {

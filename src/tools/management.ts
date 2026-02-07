@@ -56,6 +56,46 @@ export const MANAGEMENT_TOOLS: Tool[] = [
     inputSchema: { type: "object", properties: {} },
   },
   {
+    name: "add",
+    description:
+      "Add a new MCP service to the gateway config. Supports npx, bunx, node, bun, ssh, etc.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Unique service name" },
+        command: {
+          type: "string",
+          description: "Command to run (e.g. npx, bunx, bun, node, ssh)",
+        },
+        args: {
+          type: "array",
+          items: { type: "string" },
+          description: "Command arguments",
+        },
+        env: {
+          type: "object",
+          description: "Environment variables",
+        },
+        timeout: {
+          type: "number",
+          description: "Connection timeout in ms (default: 30000)",
+        },
+      },
+      required: ["name", "command"],
+    },
+  },
+  {
+    name: "remove",
+    description: "Remove an MCP service from the gateway config",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Service name to remove" },
+      },
+      required: ["name"],
+    },
+  },
+  {
     name: "call",
     description:
       "Call any tool on any active service. Use activate first to see available tools and their schemas.",

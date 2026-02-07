@@ -1,7 +1,9 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import type { ServiceConfig, ServiceState } from "./types.js";
+import type { ServiceConfig, ServiceState, GatewayConfig } from "./types.js";
 import { ChildConnection } from "./child-connection.js";
 import { ToolRegistry } from "./registry.js";
+import { CONFIG_PATH, saveConfig } from "./config.js";
+import { readFileSync } from "fs";
 
 export class ChildManager {
   private states = new Map<string, ServiceState>();
@@ -227,6 +229,98 @@ export class ChildManager {
 
       case "health":
         return await this.health();
+
+      case "add": {
+        const name = args?.name as string;
+        const command = args?.command as string;
+
+        if (!name || !command) {
+          return {
+            content: [
+              { type: "text", text: "Both 'name' and 'command' are required" },
+            ],
+            isError: true,
+          };
+        }
+
+        if (this.states.has(name)) {
+          return {
+            content: [
+              { type: "text", text: `Service "${name}" already exists` },
+            ],
+            isError: true,
+          };
+        }
+
+        const newConfig: ServiceConfig = {
+          name,
+          command,
+          args: (args?.args as string[]) ?? [],
+          env: (args?.env as Record<string, string>) ?? {},
+          autoActivate: false,
+          timeout: (args?.timeout as number) ?? 30000,
+        };
+
+        // Add to runtime
+        this.states.set(name, {
+          config: newConfig,
+          status: "inactive",
+          tools: [],
+        });
+
+        // Persist to config file
+        const raw = JSON.parse(readFileSync(CONFIG_PATH, "utf-8")) as GatewayConfig;
+        raw.services.push(newConfig);
+        saveConfig(raw);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `✓ "${name}" added (${command} ${newConfig.args.join(" ")}). Use call({service: "${name}", tool: "..."}) to use it.`,
+            },
+          ],
+        };
+      }
+
+      case "remove": {
+        const name = args?.name as string;
+        if (!name) {
+          return {
+            content: [{ type: "text", text: "'name' is required" }],
+            isError: true,
+          };
+        }
+
+        if (!this.states.has(name)) {
+          return {
+            content: [
+              { type: "text", text: `Unknown service: "${name}"` },
+            ],
+            isError: true,
+          };
+        }
+
+        // Deactivate if active
+        const state = this.states.get(name)!;
+        if (state.status === "active") {
+          await this.deactivate(name);
+        }
+
+        // Remove from runtime
+        this.states.delete(name);
+
+        // Persist to config file
+        const raw = JSON.parse(readFileSync(CONFIG_PATH, "utf-8")) as GatewayConfig;
+        raw.services = raw.services.filter((s) => s.name !== name);
+        saveConfig(raw);
+
+        return {
+          content: [
+            { type: "text", text: `✓ "${name}" removed from gateway` },
+          ],
+        };
+      }
 
       case "call": {
         const service = args?.service as string;

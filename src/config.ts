@@ -1,8 +1,12 @@
-import { readFileSync } from "fs";
+import { readFileSync, writeFileSync } from "fs";
 import { resolve, dirname } from "path";
 import type { GatewayConfig } from "./types.js";
 
-const CONFIG_PATH = resolve(dirname(import.meta.dir), "gateway.config.json");
+export const CONFIG_PATH = resolve(dirname(import.meta.dir), "gateway.config.json");
+
+export function saveConfig(config: GatewayConfig): void {
+  writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n");
+}
 
 export function loadConfig(): GatewayConfig {
   const raw = readFileSync(CONFIG_PATH, "utf-8");

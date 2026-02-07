@@ -65,12 +65,7 @@ Config values support `$VAR` and `${VAR}` syntax, resolved from `process.env` at
 }
 ```
 
-This keeps secrets out of your config file. Set them in your shell or `.env`:
-
-```bash
-export MY_SECRET_KEY="sk-..."
-bun run start
-```
+This keeps secrets out of your config file. Pass them through your MCP client config (see below).
 
 ## Built-in Tools
 
@@ -91,14 +86,19 @@ All child service tools are exposed with the prefix `service_toolName` (e.g., `e
 
 ## Using with Claude Code
 
-Add to your Claude Code MCP config (`~/.claude/config.json` or project settings):
+Add to your Claude Code MCP config (`~/.claude/config.json` or project settings).
+API keys go in the `env` block — they're passed to the gateway process and expanded in `gateway.config.json` via `$VAR` syntax:
 
 ```json
 {
   "mcpServers": {
     "gateway": {
       "command": "bun",
-      "args": ["run", "/path/to/mcp-gateway/src/index.ts"]
+      "args": ["run", "/path/to/mcp-gateway/src/index.ts"],
+      "env": {
+        "GEMINI_API_KEY": "your-gemini-key",
+        "EXA_API_KEY": "your-exa-key"
+      }
     }
   }
 }

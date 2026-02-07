@@ -4,7 +4,7 @@ A service orchestration layer for the [Model Context Protocol](https://modelcont
 
 ## Features
 
-- **Service orchestration** — spawn, stop, reload, restart child MCP services
+- **Service orchestration** — spawn, stop, and restart child MCP services
 - **Tool aggregation** — collects tools from all services, exposes them as `service_toolName`
 - **Auto-reactivation** — inactive services restart automatically when their tools are called
 - **Environment variable expansion** — use `$VAR` or `${VAR}` in config for secrets
@@ -81,7 +81,6 @@ Once running, the gateway exposes these management tools:
 | `services` | List all services with status, tool count, uptime |
 | `activate` | Start a service by name |
 | `deactivate` | Stop a service |
-| `reload` | Reconnect to a service (picks up code changes) |
 | `restart` | Kill and respawn a service |
 | `health` | Ping all active services |
 | `add` | Register a new service dynamically |

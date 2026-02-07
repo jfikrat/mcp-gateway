@@ -162,13 +162,9 @@ export class ChildManager {
     };
   }
 
-  async reload(name: string): Promise<CallToolResult> {
+  async restart(name: string): Promise<CallToolResult> {
     await this.deactivate(name);
     return await this.activate(name);
-  }
-
-  async restart(name: string): Promise<CallToolResult> {
-    return await this.reload(name);
   }
 
   async health(): Promise<CallToolResult> {
@@ -220,9 +216,6 @@ export class ChildManager {
 
       case "deactivate":
         return await this.deactivate(args?.name as string);
-
-      case "reload":
-        return await this.reload(args?.name as string);
 
       case "restart":
         return await this.restart(args?.name as string);

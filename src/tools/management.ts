@@ -29,17 +29,6 @@ export const MANAGEMENT_TOOLS: Tool[] = [
     },
   },
   {
-    name: "reload",
-    description: "Reload a service: disconnect and reconnect (picks up code changes)",
-    inputSchema: {
-      type: "object",
-      properties: {
-        name: { type: "string", description: "Service name to reload" },
-      },
-      required: ["name"],
-    },
-  },
-  {
     name: "restart",
     description: "Restart a service: kill process and respawn",
     inputSchema: {

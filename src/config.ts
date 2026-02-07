@@ -27,7 +27,6 @@ export function loadConfig(): GatewayConfig {
       throw new Error(`Invalid service config: name and command required`);
     }
     svc.autoActivate ??= false;
-    svc.timeout ??= 30000;
     svc.args = (svc.args ?? []).map(expandEnvVars);
     svc.env = Object.fromEntries(
       Object.entries(svc.env ?? {}).map(([k, v]) => [k, expandEnvVars(v)])

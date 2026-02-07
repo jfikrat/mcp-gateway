@@ -38,8 +38,7 @@ bun run start
       "command": "bun",
       "args": ["run", "/path/to/service/index.ts"],
       "env": { "API_KEY": "$MY_API_KEY" },
-      "autoActivate": false,
-      "timeout": 30000
+      "autoActivate": false
     }
   ]
 }
@@ -52,7 +51,6 @@ bun run start
 | `args` | no | `[]` | Command arguments |
 | `env` | no | `{}` | Environment variables (supports `$VAR` expansion) |
 | `autoActivate` | no | `false` | Start automatically on gateway launch |
-| `timeout` | no | `30000` | Connection timeout in ms |
 
 ### Environment Variables
 

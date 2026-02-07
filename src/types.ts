@@ -6,7 +6,6 @@ export interface ServiceConfig {
   args: string[];
   env?: Record<string, string>;
   autoActivate?: boolean;
-  timeout?: number; // connection timeout ms, default 30000
 }
 
 export interface GatewayConfig {

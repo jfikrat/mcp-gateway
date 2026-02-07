@@ -17,8 +17,7 @@
       "name": "my-remote-service",
       "command": "ssh",
       "args": ["user@host", "cd ~/project && bun run mcp-server.ts"],
-      "autoActivate": false,
-      "timeout": 180000
+      "autoActivate": false
     }
   ]
 }

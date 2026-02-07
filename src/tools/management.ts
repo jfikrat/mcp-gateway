@@ -65,10 +65,6 @@ export const MANAGEMENT_TOOLS: Tool[] = [
           type: "object",
           description: "Environment variables",
         },
-        timeout: {
-          type: "number",
-          description: "Connection timeout in ms (default: 30000)",
-        },
       },
       required: ["name", "command"],
     },

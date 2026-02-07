@@ -251,7 +251,6 @@ export class ChildManager {
           args: (args?.args as string[]) ?? [],
           env: (args?.env as Record<string, string>) ?? {},
           autoActivate: false,
-          timeout: (args?.timeout as number) ?? 30000,
         };
 
         // Add to runtime

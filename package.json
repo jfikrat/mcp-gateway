@@ -1,0 +1,14 @@
+{
+  "name": "mcp-gateway",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.0"
+  }
+}

@@ -3,6 +3,17 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import type { Tool, CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { ServiceConfig } from "./types.js";
 
+function resolveEnvVars(env?: Record<string, string>): Record<string, string> {
+  if (!env) return {};
+  const resolved: Record<string, string> = {};
+  for (const [key, value] of Object.entries(env)) {
+    resolved[key] = value.startsWith("$")
+      ? process.env[value.slice(1)] || ""
+      : value;
+  }
+  return resolved;
+}
+
 export class ChildConnection {
   private client: Client;
   private transport: StdioClientTransport;
@@ -17,7 +28,7 @@ export class ChildConnection {
     this.transport = new StdioClientTransport({
       command: config.command,
       args: config.args,
-      env: { ...process.env, ...config.env } as Record<string, string>,
+      env: { ...process.env, ...resolveEnvVars(config.env) } as Record<string, string>,
       stderr: "pipe",
     });
   }

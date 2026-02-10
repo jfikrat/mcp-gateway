@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -9,6 +11,20 @@ import { ToolRegistry } from "./registry.js";
 import { ChildManager } from "./child-manager.js";
 import { MANAGEMENT_TOOLS, MANAGEMENT_TOOL_NAMES } from "./tools/management.js";
 import { proxyToolCall } from "./tools/proxy.js";
+
+// Load gateway .env into process.env (before any child spawns)
+try {
+  const envPath = join(import.meta.dir, "..", ".env");
+  for (const line of readFileSync(envPath, "utf-8").split("\n")) {
+    const t = line.trim();
+    if (t && !t.startsWith("#")) {
+      const i = t.indexOf("=");
+      if (i > 0 && !process.env[t.slice(0, i)]) {
+        process.env[t.slice(0, i)] = t.slice(i + 1).trim();
+      }
+    }
+  }
+} catch {}
 
 const config = loadConfig();
 const registry = new ToolRegistry();

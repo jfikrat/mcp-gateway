@@ -6,6 +6,7 @@ export interface ServiceConfig {
   args: string[];
   env?: Record<string, string>;
   autoActivate?: boolean;
+  groups?: Record<string, string[]>;
 }
 
 export interface GatewayConfig {
@@ -18,6 +19,9 @@ export interface ServiceState {
   config: ServiceConfig;
   status: ServiceStatus;
   tools: Tool[];
+  allTools: Tool[];
+  lazy?: boolean;
+  activeGroups?: string[];
   activatedAt?: number;
   error?: string;
 }

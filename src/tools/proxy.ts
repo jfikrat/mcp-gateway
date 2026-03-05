@@ -16,24 +16,17 @@ export async function proxyToolCall(
     };
   }
 
-  let connection = manager.getConnection(route.service);
+  const connection = manager.getConnection(route.service);
   if (!connection) {
-    // Auto-activate the service
-    const activateResult = await manager.activate(route.service);
-    if (activateResult.isError) return activateResult;
-
-    connection = manager.getConnection(route.service);
-    if (!connection) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Service "${route.service}" failed to activate.`,
-          },
-        ],
-        isError: true,
-      };
-    }
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Service "${route.service}" is not active. Activate it first with: activate({name: "${route.service}"})`,
+        },
+      ],
+      isError: true,
+    };
   }
 
   return await connection.callTool(route.originalName, args);

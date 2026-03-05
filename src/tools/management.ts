@@ -8,13 +8,34 @@ export const MANAGEMENT_TOOLS: Tool[] = [
   },
   {
     name: "activate",
-    description: "Activate a service: spawn its process, load its tools",
+    description: "Activate a service. Default is lazy: spawns process, fetches tool list, but does NOT inject schemas into context (0 tokens). Use tools() to see available tools, call() to use them. Set lazy=false to register all tool schemas in context.",
     inputSchema: {
       type: "object",
       properties: {
         name: { type: "string", description: "Service name to activate" },
+        lazy: {
+          type: "boolean",
+          description: "If true (default), don't register tool schemas in context. Tools are still callable via call().",
+        },
+        groups: {
+          type: "array",
+          items: { type: "string" },
+          description: "Tool groups to load (e.g. ['gmail', 'calendar']). Only applies when lazy=false.",
+        },
       },
       required: ["name"],
+    },
+  },
+  {
+    name: "tools",
+    description: "List available tools for an active service. Returns tool names, parameters, and descriptions as text (not injected into context).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        service: { type: "string", description: "Service name" },
+        filter: { type: "string", description: "Optional keyword to filter tools by name or description" },
+      },
+      required: ["service"],
     },
   },
   {

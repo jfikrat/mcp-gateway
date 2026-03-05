@@ -29,6 +29,7 @@ export class ChildConnection {
       command: config.command,
       args: config.args,
       env: { ...process.env, ...resolveEnvVars(config.env) } as Record<string, string>,
+      cwd: process.env.HOME ?? "/tmp",
       stderr: "pipe",
     });
   }
@@ -65,9 +66,18 @@ export class ChildConnection {
   }
 
   async callTool(name: string, args?: Record<string, unknown>): Promise<CallToolResult> {
+    // Ensure args is a proper object (may arrive as JSON string from nested call)
+    let resolved = args;
+    if (typeof resolved === "string") {
+      try {
+        resolved = JSON.parse(resolved);
+      } catch {
+        // keep as-is
+      }
+    }
     // Max safe setTimeout value (2^31 - 1 ms ≈ 24.8 days)
     // Note: Infinity causes setTimeout to overflow to 1ms in JS runtimes
-    return await this.client.callTool({ name, arguments: args }, undefined, { timeout: 2_147_483_647 });
+    return await this.client.callTool({ name, arguments: resolved }, undefined, { timeout: 2_147_483_647 });
   }
 
   async ping(): Promise<boolean> {

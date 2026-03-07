@@ -363,12 +363,12 @@ export class ChildManager {
         let tools = state.allTools;
         const filter = args?.filter as string | undefined;
         if (filter) {
-          const lc = filter.toLowerCase();
-          tools = tools.filter(
-            (t) =>
-              t.name.toLowerCase().includes(lc) ||
-              (t.description?.toLowerCase().includes(lc) ?? false)
-          );
+          const normalize = (s: string) => s.toLowerCase().replace(/[-_\s.]+/g, " ");
+          const keywords = normalize(filter).split(" ").filter(Boolean);
+          tools = tools.filter((t) => {
+            const haystack = normalize(t.name) + " " + normalize(t.description ?? "");
+            return keywords.every((kw) => haystack.includes(kw));
+          });
         }
 
         const toolLines = this.formatToolLines(tools);

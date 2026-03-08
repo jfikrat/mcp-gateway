@@ -56,7 +56,7 @@ export class ChildManager {
   private formatToolLines(tools: Tool[]): string[] {
     return tools.map((t) => {
       const schema = t.inputSchema as {
-        properties?: Record<string, { type?: string; description?: string }>;
+        properties?: Record<string, { type?: string; enum?: string[]; description?: string }>;
         required?: string[];
       };
       const props = schema?.properties ?? {};
@@ -64,7 +64,8 @@ export class ChildManager {
       const params = Object.entries(props)
         .map(([k, v]) => {
           const opt = required.has(k) ? "" : "?";
-          return `${k}${opt}: ${v.type ?? "any"}`;
+          const type = v.enum ? v.enum.map((e) => `'${e}'`).join("|") : (v.type ?? "any");
+          return `${k}${opt}: ${type}`;
         })
         .join(", ");
       const desc = t.description ? ` — ${t.description}` : "";
@@ -172,8 +173,7 @@ export class ChildManager {
         const text = [
           `✓ ${name} activated [lazy] — ${allTools.length} tools available (0 registered in context)`,
           "",
-          `Use tools({service: "${name}"}) to see available tools.`,
-          `Use call({service: "${name}", tool: "<name>", args: {...}}) to call them.`,
+          `⚠️ IMPORTANT: You MUST call tools({service: "${name}"}) first to see available tools and their parameters before calling any tool. Do NOT guess tool names or parameters.`,
         ].join("\n");
 
         return { content: [{ type: "text", text }] };

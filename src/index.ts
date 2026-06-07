@@ -1,16 +1,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  ListToolsRequestSchema,
-  CallToolRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
 import { loadConfig } from "./config.js";
 import { ToolRegistry } from "./registry.js";
 import { ChildManager } from "./child-manager.js";
-import { MANAGEMENT_TOOLS, MANAGEMENT_TOOL_NAMES } from "./tools/management.js";
-import { proxyToolCall } from "./tools/proxy.js";
+import { createGatewayServer } from "./server-factory.js";
+import { startHttpServer } from "./http-server.js";
+import type { GatewayConfig } from "./types.js";
 
 // Load gateway .env into process.env (before any child spawns)
 try {
@@ -29,64 +25,38 @@ try {
 const config = loadConfig();
 const registry = new ToolRegistry();
 
-const server = new Server(
-  { name: "gateway", version: "1.0.0" },
-  { capabilities: { tools: {} } }
-);
+// --- stdio mode (default, unchanged): one client per gateway process ---
+async function startStdio(config: GatewayConfig, registry: ToolRegistry): Promise<void> {
+  let notify = () => {};
+  const manager = new ChildManager(config.services, registry, () => notify());
+  const server = createGatewayServer(registry, manager);
+  notify = () => server.sendToolListChanged();
 
-const manager = new ChildManager(config.services, registry, () => {
-  server.sendToolListChanged();
-});
+  const shutdown = async () => {
+    await manager.shutdown();
+    await server.close();
+    process.exit(0);
+  };
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
 
-// --- ListTools handler ---
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return { tools: [...MANAGEMENT_TOOLS, ...registry.getAllTools()] };
-});
-
-// --- CallTool handler ---
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-
-  if (MANAGEMENT_TOOL_NAMES.has(name)) {
-    return await manager.handleManagementCall(name, args);
-  }
-
-  return await proxyToolCall(name, args, registry, manager);
-});
-
-// --- Auto-activate services ---
-async function autoActivate(): Promise<void> {
-  const autoServices = config.services.filter((s) => s.autoActivate);
-  if (autoServices.length === 0) return;
-
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
   process.stderr.write(
-    `[gateway] Auto-activating: ${autoServices.map((s) => s.name).join(", ")}\n`
+    `[gateway] Started (stdio) — ${config.services.length} services registered\n`
   );
 
-  await Promise.allSettled(
-    autoServices.map((s) => manager.activate(s.name))
-  );
+  const auto = config.services.filter((s) => s.autoActivate);
+  if (auto.length > 0) {
+    process.stderr.write(`[gateway] Auto-activating: ${auto.map((s) => s.name).join(", ")}\n`);
+    await Promise.allSettled(auto.map((s) => manager.activate(s.name)));
+  }
 }
 
-// --- Graceful shutdown ---
-process.on("SIGINT", async () => {
-  await manager.shutdown();
-  await server.close();
-  process.exit(0);
-});
-
-process.on("SIGTERM", async () => {
-  await manager.shutdown();
-  await server.close();
-  process.exit(0);
-});
-
-// --- Start ---
-const transport = new StdioServerTransport();
-await server.connect(transport);
-
-process.stderr.write(
-  `[gateway] Started — ${config.services.length} services registered\n`
-);
-
-await autoActivate();
+// GATEWAY_HTTP_PORT set → always-on shared HTTP daemon; otherwise stdio.
+const httpPort = process.env.GATEWAY_HTTP_PORT;
+if (httpPort) {
+  await startHttpServer({ services: config.services, registry, port: Number(httpPort) });
+} else {
+  await startStdio(config, registry);
+}

@@ -8,6 +8,7 @@ import { readFileSync } from "fs";
 export class ChildManager {
   private states = new Map<string, ServiceState>();
   private connections = new Map<string, ChildConnection>();
+  private restartAttempts = new Map<string, number>();
   private onToolsChanged: () => void;
 
   constructor(
@@ -154,6 +155,8 @@ export class ChildManager {
           this.connections.delete(name);
           if (!s.lazy) this.onToolsChanged();
           process.stderr.write(`[gateway] ${name} crashed\n`);
+          // Always-on services respawn themselves with backoff.
+          if (s.config.keepAlive) this.scheduleKeepAliveRestart(name);
         }
       };
 
@@ -247,6 +250,7 @@ export class ChildManager {
     }
 
     if (!state.lazy) this.registry.unregisterService(name);
+    this.restartAttempts.delete(name); // cancel any pending keepAlive restart
     state.status = "inactive";
     state.tools = [];
     state.allTools = [];
@@ -268,6 +272,33 @@ export class ChildManager {
     const groups = state?.activeGroups;
     await this.deactivate(name);
     return await this.activate(name, lazy, groups);
+  }
+
+  /**
+   * Respawn a crashed keepAlive service with exponential backoff (1s→2s→…→30s cap),
+   * giving up after 5 consecutive failures. Only restarts from "error" state, so an
+   * intentional deactivate (which sets "inactive") cancels the loop.
+   */
+  private scheduleKeepAliveRestart(name: string): void {
+    const attempts = (this.restartAttempts.get(name) ?? 0) + 1;
+    this.restartAttempts.set(name, attempts);
+    if (attempts > 5) {
+      process.stderr.write(`[gateway] ${name} keepAlive: gave up after ${attempts - 1} attempts\n`);
+      return;
+    }
+    const delay = Math.min(1000 * 2 ** (attempts - 1), 30000);
+    process.stderr.write(`[gateway] ${name} keepAlive: restart #${attempts} in ${delay}ms\n`);
+    setTimeout(async () => {
+      const st = this.states.get(name);
+      if (!st || st.status !== "error") return; // deactivated meanwhile → stop
+      const res = await this.activate(name, st.lazy ?? true, st.activeGroups);
+      if (res.isError) {
+        this.scheduleKeepAliveRestart(name);
+      } else {
+        this.restartAttempts.delete(name);
+        process.stderr.write(`[gateway] ${name} keepAlive: restarted ✓\n`);
+      }
+    }, delay);
   }
 
   async health(): Promise<CallToolResult> {

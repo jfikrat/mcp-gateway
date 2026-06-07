@@ -1,0 +1,33 @@
+# MCP Gateway — always-on shared toolkit daemon (systemd --user unit)
+#
+# Install:
+#   mkdir -p ~/.config/systemd/user
+#   cp /home/fjds/mcp-servers/gateway/deploy/mcp-gateway.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now mcp-gateway
+#   systemctl --user status mcp-gateway
+#   journalctl --user -u mcp-gateway -f      # logs
+#
+# Then point agents at:  http://127.0.0.1:8770/mcp
+
+[Unit]
+Description=MCP Gateway — always-on shared toolkit daemon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/home/fjds/.bun/bin/bun run /home/fjds/mcp-servers/gateway/src/index.ts
+Environment=GATEWAY_HTTP_PORT=8770
+# index.ts loads gateway/.env itself, so child secrets are already available.
+#
+# helm drives the real Chrome session and may need the X display under systemd.
+# If helm can't reach the browser, set your actual display + auth and reload:
+#   Environment=DISPLAY=:0
+#   Environment=XAUTHORITY=/run/user/1000/gdm/Xauthority
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=10
+
+[Install]
+WantedBy=default.target

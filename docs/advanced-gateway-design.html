@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MCP Gateway → Always-On Shared Toolkit · Tasarım & İnceleme</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --border:#2a3441;
+    --ink:#e6edf3; --mut:#9aa7b4; --dim:#6b7785;
+    --acc:#58a6ff; --grn:#3fb950; --yel:#d29922; --red:#f85149; --pur:#bc8cff;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:980px;margin:0 auto;padding:48px 28px 96px}
+  header.hero{border:1px solid var(--border);border-radius:16px;padding:34px 34px 30px;
+    background:linear-gradient(160deg,#13243b 0%,#161b22 55%);margin-bottom:40px}
+  .eyebrow{font:600 12px/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--acc);margin-bottom:14px}
+  h1{font-size:30px;line-height:1.2;margin:0 0 14px;letter-spacing:-.02em}
+  h1 small{display:block;font-size:16px;font-weight:500;color:var(--mut);margin-top:8px;letter-spacing:0}
+  .verdict{display:inline-flex;align-items:center;gap:9px;margin-top:8px;
+    background:rgba(63,185,80,.12);border:1px solid rgba(63,185,80,.35);color:#7ee787;
+    padding:8px 15px;border-radius:999px;font:600 14px/1 var(--mono)}
+  .meta{margin-top:18px;color:var(--dim);font:13px/1.5 var(--mono)}
+  h2{font-size:21px;margin:54px 0 6px;letter-spacing:-.01em;display:flex;align-items:baseline;gap:12px}
+  h2 .n{font:700 13px/1 var(--mono);color:var(--acc);background:var(--panel2);
+    border:1px solid var(--border);padding:6px 9px;border-radius:8px}
+  h2.tight{margin-top:40px}
+  .lead{color:var(--mut);margin:6px 0 18px}
+  h3{font-size:16px;margin:28px 0 8px;color:#fff}
+  p{margin:12px 0}
+  ul,ol{margin:12px 0;padding-left:22px}
+  li{margin:7px 0}
+  code{font-family:var(--mono);font-size:.86em;background:var(--panel2);border:1px solid var(--border);
+    padding:1.5px 6px;border-radius:6px;color:#cdd9e5}
+  a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:13px;padding:22px 24px;margin:18px 0}
+  pre{font-family:var(--mono);font-size:12.5px;line-height:1.55;background:#0a0e14;border:1px solid var(--border);
+    border-radius:11px;padding:18px;overflow:auto;color:#c9d4e0}
+  pre .c{color:var(--dim)} pre .g{color:var(--grn)} pre .y{color:var(--yel)}
+  pre .b{color:var(--acc)} pre .p{color:var(--pur)} pre .r{color:var(--red)} pre .w{color:#fff;font-weight:600}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:720px){.grid2{grid-template-columns:1fr}.wrap{padding:30px 18px 70px}}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px 20px}
+  .card h4{margin:0 0 8px;font-size:14px;font-family:var(--mono);letter-spacing:.02em}
+  .tag{display:inline-block;font:600 11px/1 var(--mono);padding:4px 8px;border-radius:6px;margin-right:6px}
+  .t-keep{background:rgba(63,185,80,.13);color:#7ee787;border:1px solid rgba(63,185,80,.3)}
+  .t-block{background:rgba(248,81,73,.13);color:#ff9c95;border:1px solid rgba(248,81,73,.3)}
+  .t-add{background:rgba(88,166,255,.13);color:#a5d6ff;border:1px solid rgba(88,166,255,.3)}
+  table{width:100%;border-collapse:collapse;margin:18px 0;font-size:14px}
+  th,td{text-align:left;padding:11px 13px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{font:600 12px/1 var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--mut);background:var(--panel2)}
+  td code{font-size:12px}
+  tr:last-child td{border-bottom:none}
+  .callout{border-left:3px solid var(--acc);background:var(--panel2);border-radius:0 10px 10px 0;padding:14px 18px;margin:18px 0}
+  .callout.warn{border-color:var(--yel)} .callout.good{border-color:var(--grn)} .callout.key{border-color:var(--pur)}
+  .callout .h{font:600 12px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+  .callout.key .h{color:var(--pur)} .callout.good .h{color:var(--grn)} .callout.warn .h{color:var(--yel)} .callout .h{color:var(--acc)}
+  .fileref{font-family:var(--mono);font-size:11.5px;color:var(--dim)}
+  .stage{display:flex;gap:16px;margin:14px 0;align-items:flex-start}
+  .stage .num{flex:none;width:38px;height:38px;border-radius:10px;background:var(--panel2);border:1px solid var(--border);
+    display:flex;align-items:center;justify-content:center;font:700 15px/1 var(--mono);color:var(--acc)}
+  .stage .body{flex:1}
+  .stage .body h4{margin:6px 0 4px;font-size:15px}
+  .stage .body .risk{font:11px/1 var(--mono);color:var(--dim);margin-top:6px}
+  .pill{font:600 10px/1 var(--mono);padding:3px 7px;border-radius:5px;background:var(--panel2);border:1px solid var(--border);color:var(--mut);margin-left:8px}
+  hr{border:none;border-top:1px solid var(--border);margin:40px 0}
+  .foot{color:var(--dim);font:12px/1.6 var(--mono);margin-top:40px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">MCP Gateway · Mimari İnceleme & İleri Tasarım</div>
+  <h1>Her Zaman Canlı, Çok-Agent'lı Ortak Toolkit
+    <small>Tek bir gateway daemon'u — Claude, Codex ve özel agent'ların ortak bağlandığı yaşayan araç havuzu</small>
+  </h1>
+  <span class="verdict">✓ Mümkün — hatta mevcut tasarım yolun %70'ini bitirmiş</span>
+  <div class="meta">07.06.2026 · kaynak: ~/mcp-servers/gateway · 8 dosya / 1906 satır incelendi</div>
+</header>
+
+<!-- ============ TL;DR ============ -->
+<div class="callout key">
+  <div class="h">Özet Hüküm</div>
+  <p style="margin:6px 0 0">Evet, mümkün ve doğru hamle. Bugün her agent <em>kendi</em> gateway kopyasını
+  açıyor — yani <code>whatsapp</code>, <code>helm</code>, <code>ikas</code> gibi <strong>tekil (singleton)</strong>
+  servisler bile çoğalıyor. Hedef: makinede <strong>tek bir canlı daemon</strong>, ağ üzerinden (Streamable HTTP)
+  birden çok agent'a hizmet versin. İşin güzeli: yakın zamanda eklediğin <strong>lazy-activate</strong>,
+  "süreç canlı" ile "şema context'te" kavramlarını zaten ayırmış — paylaşımlı daemon için gereken en zor
+  ayrıştırma bu, ve büyük ölçüde hazır.</p>
+</div>
+
+<!-- ============ 1 ============ -->
+<h2><span class="n">1</span> Bugün nasıl çalışıyor</h2>
+<p class="lead">Gateway şu an saf bir <strong>stdio</strong> MCP sunucusu. stdio doğası gereği <strong>1:1</strong>'dir:
+bir süreç, bir ebeveyne pipe'lanır. Yani her agent oturumu kendi gateway sürecini doğurur, o da kendi child'larını.</p>
+
+<pre><span class="c"># Bugünkü gerçeklik — her agent kendi dünyasını kuruyor</span>
+Claude oturumu ──stdio──▶ gateway #1 ──stdio──▶ helm,  whatsapp,  ikas …
+Codex  oturumu ──stdio──▶ gateway #2 ──stdio──▶ helm', whatsapp', ikas' …   <span class="r">◀ KOPYA</span>
+özel agent     ──stdio──▶ gateway #3 ──stdio──▶ …                            <span class="r">◀ KOPYA</span>
+                                       <span class="y">▲ aynı tekil servisler N kez doğuyor</span></pre>
+
+<div class="panel">
+  <h3 style="margin-top:0">Tek bağlantı, paylaşılmayan state</h3>
+  <ul>
+    <li><strong>Transport:</strong> sadece <code>StdioServerTransport</code>. <span class="fileref">src/index.ts:85</span></li>
+    <li><strong>Tek <code>Server</code> örneği</strong>, oturum/bağlantı kavramı yok. <span class="fileref">src/index.ts:32</span></li>
+    <li><strong>State tamamen bellekte ve global:</strong> <code>states</code> + <code>connections</code> Map'leri. Süreçler arası hiçbir paylaşım yok. <span class="fileref">src/child-manager.ts:9-10</span></li>
+    <li><strong>Her <code>ListTools</code></strong> global registry'yi döner — çok-client'ta bir client'ın "full mode"u diğerinin context'ine sızar. <span class="fileref">src/index.ts:42-44 · registry.ts:41</span></li>
+    <li><strong>Kapanışta tüm child'lar ölür</strong> (SIGINT/SIGTERM → shutdown). Daemon kalıcılığı yok. <span class="fileref">src/index.ts:72-82 · child-manager.ts:554</span></li>
+  </ul>
+</div>
+
+<div class="callout warn">
+  <div class="h">Asıl Sorun — sadece israf değil, hata</div>
+  <p style="margin:6px 0 0">Config'indeki servislerin çoğu makine-tekili: <code>whatsapp</code> (tek WhatsApp Web oturumu),
+  <code>helm</code> (gerçek Chrome'u sürüyor), <code>ikas-direm</code> (tek OAuth token), <code>biletix</code> (<code>DISPLAY :1</code>).
+  Bunları paralel iki kopyada çalıştırmak <em>yanlış</em> — oturum çakışması, kilitli profil, token yarışı. Yani paylaşımlı daemon
+  bir "nice-to-have" değil, bu servisler için <strong>doğru model</strong>.</p>
+</div>
+
+<!-- ============ 2 ============ -->
+<h2><span class="n">2</span> Neden yolun %70'i bitmiş</h2>
+<p class="lead">Lazy-activate refaktoru farkında olmadan paylaşımlı-daemon için gereken kritik ayrımı yaptı.</p>
+
+<div class="grid2">
+  <div class="card">
+    <h4 style="color:var(--grn)">PAYLAŞILABİLİR (global) ✓</h4>
+    <p style="margin:6px 0 0;font-size:14px;color:var(--mut)">Pahalı, tekil kaynaklar zaten doğal olarak global:
+    canlı child süreç, <code>allTools</code> listesi, health/ping, uptime. Lazy modda gateway süreci canlı tutar
+    ama <em>hiçbir şemayı context'e enjekte etmez</em>. <span class="fileref">child-manager.ts:168-179</span></p>
+  </div>
+  <div class="card">
+    <h4 style="color:var(--yel)">OTURUMA ÖZEL (per-session) ◑</h4>
+    <p style="margin:6px 0 0;font-size:14px;color:var(--mut)">Tek client'a özel olan şey küçük: hangi servisi
+    "full mode"a yükselttiğin, yani <code>ToolRegistry</code>'nin <code>ListTools</code>'a dönen şemaları + grup filtresi.
+    Lazy varsayılan olduğu için çoğu oturum bunu neredeyse boş taşır.</p>
+  </div>
+</div>
+
+<div class="callout good">
+  <div class="h">Anahtar İçgörü</div>
+  <p style="margin:6px 0 0">Çok-client'a geçiş = <strong>ağır olan her şeyi global bırak</strong>, sadece o küçük
+  "şema görünümü" katmanını oturuma taşı. 559 satırlık <code>ChildManager</code>'ın büyük kısmı aynen kalır.
+  Bu yüzden bu, baştan yazım değil, <strong>cerrahi bir ayrıştırma</strong>.</p>
+</div>
+
+<!-- ============ 3 ============ -->
+<h2><span class="n">3</span> Hedef mimari</h2>
+<p class="lead">Tek, uzun-ömürlü <strong>gateway daemon'u</strong> (systemd --user). Canlı child servisleri tutar,
+ağ üzerinden <strong>Streamable HTTP</strong> ile birden çok heterojen agent'a hizmet verir.</p>
+
+<pre>            <span class="b">Claude Code</span> ─┐                                  <span class="c">systemd --user, hep açık</span>
+            <span class="b">Codex</span>       ─┼─ HTTP/MCP ─▶  <span class="w">gateway daemon</span> ──stdio──▶ helm
+            <span class="b">özel agent</span>  ─┘   (127.0.0.1)    │                       whatsapp   <span class="g">◀ TEK canlı set</span>
+            <span class="b">cron / script</span>─┘                  │                       ikas, gemini…
+                                              <span class="p">└─ per-session view (şema enjeksiyonu)</span>
+                                              <span class="g">└─ global runtime (süreçler, allTools, health)</span></pre>
+
+<h3>Global runtime vs. per-session view — ayrımın özü</h3>
+<pre><span class="w">GLOBAL  (daemon başına bir tane)</span>
+  ChildManager
+    states:       name → { config, status, allTools, activatedAt }   <span class="c">// süreç canlılığı</span>
+    connections:  name → ChildConnection                             <span class="c">// canlı stdio child</span>
+    spawnLocks:   name → Promise                                     <span class="c">// çift-spawn engeli (YENİ)</span>
+
+<span class="w">PER-SESSION  (bağlı her agent için bir tane)</span>
+  SessionView
+    registry:          ToolRegistry        <span class="c">// SADECE bu agent'ın enjekte ettiği şemalar</span>
+    fullModeServices:  Set&lt;name&gt;
+    notify()                                <span class="c">// tool-list-changed yalnız bu agent'a</span>
+
+<span class="y">call()  / tools()      → GLOBAL okur   (herkes aynı canlı servisi görür)</span>
+<span class="y">activate(lazy)/spawn   → GLOBAL yazar  (paylaşımlı canlılık)</span>
+<span class="p">activate(lazy=false)   → PER-SESSION yazar (şema yalnız çağıran agent'ın context'ine)</span></pre>
+
+<table>
+  <thead><tr><th>Bileşen</th><th>Bugün</th><th>Hedef</th><th>Eylem</th></tr></thead>
+  <tbody>
+    <tr><td><code>StdioServerTransport</code></td><td>Tek transport</td><td>HTTP daemon + stdio (geri uyum)</td><td><span class="tag t-add">EKLE</span></td></tr>
+    <tr><td><code>ChildManager</code> (state/conn)</td><td>Global</td><td>Global — aynen</td><td><span class="tag t-keep">KORU</span></td></tr>
+    <tr><td><code>ToolRegistry</code></td><td>Global, tek</td><td>Per-session</td><td><span class="tag t-block">TAŞI</span></td></tr>
+    <tr><td><code>onToolsChanged</code> / notify</td><td>Tek client</td><td>Per-session yayın</td><td><span class="tag t-block">TAŞI</span></td></tr>
+    <tr><td><code>activate</code> check-then-spawn</td><td>Yarış açık <span class="fileref">cm:86,142</span></td><td>spawnLock ile serileştir</td><td><span class="tag t-add">EKLE</span></td></tr>
+    <tr><td>Lifecycle</td><td>Oturumla ölür</td><td>systemd, auto-restart, backoff</td><td><span class="tag t-add">EKLE</span></td></tr>
+    <tr><td>Log</td><td>stderr (uçar)</td><td>journald / dosya + audit</td><td><span class="tag t-add">EKLE</span></td></tr>
+    <tr><td>Kimlik & policy</td><td>Yok</td><td>clientInfo + allow/deny gate</td><td><span class="tag t-add">EKLE</span></td></tr>
+  </tbody>
+</table>
+
+<!-- ============ 4 ============ -->
+<h2><span class="n">4</span> Kritik teknik kararlar</h2>
+
+<h3>4.1 — Transport: Streamable HTTP</h3>
+<p>MCP'nin güncel standardı. Tek endpoint, çoklu client, <code>Mcp-Session-Id</code> header'ı ile oturum yönetimi,
+yanıt içinde SSE stream. SDK'da <code>StreamableHTTPServerTransport</code> hazır. İskelet:</p>
+<pre><span class="p">import</span> { StreamableHTTPServerTransport } <span class="p">from</span> <span class="g">"@modelcontextprotocol/sdk/server/streamableHttp.js"</span>;
+<span class="c">// her Mcp-Session-Id için: kendi Server örneği + kendi SessionView (registry)</span>
+<span class="c">// global ChildManager TEK, tüm oturumlarca paylaşılır</span>
+app.post(<span class="g">"/mcp"</span>, handleSession);   <span class="c">// 127.0.0.1'e bind, dışarı kapalı</span></pre>
+<ul>
+  <li><strong>Claude Code:</strong> HTTP MCP'yi native destekler — <code>claude mcp add --transport http gateway http://127.0.0.1:PORT/mcp</code>.</li>
+  <li><strong>Codex:</strong> HTTP MCP destekliyorsa doğrudan; değilse <code>mcp-remote</code> köprüsü (zaten <code>stitch</code> servisinde kullanıyorsun → stdio→HTTP köprüsü senin için çözülmüş bir kalıp).</li>
+  <li><strong>Özel agent / cron:</strong> SDK client ya da düz HTTP.</li>
+</ul>
+
+<h3>4.2 — Eşzamanlılık güvenliği</h3>
+<ul>
+  <li><strong>Çift-spawn:</strong> <code>activate</code> "active mi?" kontrolü ile spawn arası <code>await</code> var; iki eşzamanlı çağrı ikisi de geçip iki süreç açar. <code>Map&lt;name,Promise&gt;</code> in-flight kilidi ile serileştir. <span class="fileref">child-manager.ts:86,142-166</span></li>
+  <li><strong>Stateful servis (helm):</strong> protokolde eşzamanlı çağrı sorun değil ama tek tarayıcı mantıken seri olmalı → opsiyonel per-servis <code>concurrency=1</code> kuyruğu.</li>
+  <li><strong>deactivate yarışı:</strong> Paylaşımlı dünyada bir agent'ın kapattığı servisi diğeri kullanıyor olabilir → ref-count ya da "deactivate = admin/explicit" kuralı.</li>
+</ul>
+
+<h3>4.3 — Daemon yaşam döngüsü</h3>
+<ul>
+  <li><code>systemctl --user</code> unit: login'de başlat, çökünce restart. (Global-tooling kuralınla birebir: "MCP servisleri global gateway'de yaşar.")</li>
+  <li>Child auto-restart + exponential backoff; <code>keepAlive</code>/<code>autoActivate</code> servisleri kendiliğinden ayağa kalksın. Bugün çökünce sadece <code>error</code> işaretleniyor. <span class="fileref">child-manager.ts:148-158</span></li>
+  <li>Yapılandırılmış log → journald; stderr daemon'da kaybolur. Her tool çağrısı için audit satırı (kim, hangi servis, hangi tool).</li>
+  <li>Opsiyonel <code>gateway.app</code> durum sayfası: ne canlı, uptime, son çağrılar (senin PROJECT.app alışkanlığına uygun).</li>
+</ul>
+
+<h3>4.4 — Kimlik, policy, auth <span class="pill">güvenlik ağı</span></h3>
+<p>Çok agent ortak havuza bağlanınca, MCP handshake'indeki <code>clientInfo.name</code> ("claude-code", "codex"…) ile
+her bağlantıyı tanı. Buraya bir <strong>allow/deny policy katmanı</strong> koy:</p>
+<div class="callout">
+  <div class="h">whatsapp kuralınla birebir örtüşüyor</div>
+  <p style="margin:6px 0 0">CLAUDE.md: "whatsapp asla onaysız göndermesin." Gateway'de policy gate = merkezi emniyet:
+  ör. güvenilmeyen/otomatik bir agent <code>whatsapp.send</code>'e hiç erişemesin, ya da o tool için zorunlu onay bayrağı.
+  Tek tek agent'lara güvenmek yerine <strong>kapıda</strong> uygula.</p>
+</div>
+<p>Localhost-only başla (<code>127.0.0.1</code>, auth gerekmez). Cihazlar arası (macbook-cagla, fjds) gerekiyorsa:
+bearer token + Cloudflare Tunnel / SSH tüneli. Adım adım.</p>
+
+<!-- ============ 5 ============ -->
+<h2><span class="n">5</span> Aşamalı geçiş planı</h2>
+<p class="lead">Her aşama tek başına shippable ve geri-uyumlu — stdio yolu hiç bozulmadan devam eder.</p>
+
+<div class="stage"><div class="num">0</div><div class="body">
+  <h4>Repo hijyeni <span class="pill">~15 dk</span></h4>
+  <p>git status'ta sarkan dosyalar: <code>tmp_send_britfresh706.mjs</code>, <code>tmp_whatsapp_navir_check.mjs</code>,
+  <code>gateway.config.json.bak*</code>. .gitignore'a al / temizle. Sırlar config'te düz metin (<code>ikas</code> secret, <code>stitch</code> API key) → <code>$VAR</code>'a çek.</p>
+  <div class="risk">risk: yok · değer: temiz zemin</div>
+</div></div>
+
+<div class="stage"><div class="num">1</div><div class="body">
+  <h4>Çift transport — HTTP ekle <span class="pill">additive</span></h4>
+  <p><code>StreamableHTTPServerTransport</code>'u stdio'nun yanına koy. <code>GATEWAY_HTTP_PORT</code> env'i varsa HTTP daemon
+  olarak da dinle, 127.0.0.1'e bind. Mevcut stdio davranışı hiç değişmez.</p>
+  <div class="risk">risk: düşük (eklemeli) · değer: daemon iskeleti</div>
+</div></div>
+
+<div class="stage"><div class="num">2</div><div class="body">
+  <h4>Görünümü oturuma çek <span class="pill">çekirdek refaktor</span></h4>
+  <p><code>ToolRegistry</code> + <code>onToolsChanged</code> per-session olur; <code>ChildManager</code> global kalır.
+  <code>call()</code>/<code>tools()</code> global okur, <code>activate(lazy=false)</code> oturuma yazar. Lazy varsayılan sayesinde
+  per-session yük neredeyse sıfır.</p>
+  <div class="risk">risk: orta · değer: gerçek çok-client izolasyonu</div>
+</div></div>
+
+<div class="stage"><div class="num">3</div><div class="body">
+  <h4>Eşzamanlılık güvenliği <span class="pill">spawnLock</span></h4>
+  <p>Per-servis in-flight activation kilidi (çift-spawn yok), stateful servisler için opsiyonel seri kuyruk,
+  deactivate için ref-count / admin kuralı.</p>
+  <div class="risk">risk: düşük · değer: çoklu agent altında dayanıklılık</div>
+</div></div>
+
+<div class="stage"><div class="num">4</div><div class="body">
+  <h4>Daemonize + süpervizyon <span class="pill">systemd</span></h4>
+  <p><code>systemctl --user</code> unit, login'de başlat, çökme restart; child auto-restart + backoff;
+  journald log + audit; opsiyonel <code>gateway.app</code> durum sayfası ve <code>/health</code> endpoint'i.</p>
+  <div class="risk">risk: düşük · değer: "hep açık, canlı" hedefi gerçekleşir</div>
+</div></div>
+
+<div class="stage"><div class="num">5</div><div class="body">
+  <h4>Kimlik · policy · auth <span class="pill">opsiyonel</span></h4>
+  <p>Per-bağlantı kimlik (clientInfo), agent başına allow/deny policy (whatsapp emniyet ağı), bearer-token auth,
+  cihazlar arası için Cloudflare Tunnel.</p>
+  <div class="risk">risk: düşük-orta · değer: güvenli paylaşım + uzaktan erişim</div>
+</div></div>
+
+<!-- ============ 6 ============ -->
+<h2><span class="n">6</span> Karar noktaları</h2>
+<table>
+  <thead><tr><th>Karar</th><th>Önerim</th><th>Neden</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Dünya modeli</strong><br>paylaşımlı vs izole</td><td><strong>Paylaşımlı dünya</strong></td>
+      <td>"Bilgisayarda canlı, içindeki her şey çalışıyor" vizyonun bu. Tekil servisler (whatsapp/helm) zaten paylaşımlı olmalı. İzolasyon yalnız güvenilmeyen çok-kiracılı senaryoda gerekir — senin değil.</td></tr>
+    <tr><td><strong>Transport</strong></td><td><strong>Streamable HTTP</strong> daemon + stdio geri-uyum</td>
+      <td>Çok-client'ın tek temiz yolu. Claude native, Codex için <code>mcp-remote</code> köprüsü hazır kalıp.</td></tr>
+    <tr><td><strong>Erişim alanı</strong></td><td>Başta <strong>localhost-only</strong></td>
+      <td>Auth/TLS yükü olmadan başla; cihazlar arası gerekince token+tunnel ekle (Aşama 5).</td></tr>
+    <tr><td><strong>Şema enjeksiyonu</strong></td><td>Per-session, <strong>lazy varsayılan</strong></td>
+      <td>Zaten böyle. Bir agent'ın full-mode'u diğerine sızmasın diye sadece registry'yi oturuma taşı.</td></tr>
+  </tbody>
+</table>
+
+<div class="callout key">
+  <div class="h">Net Cevap</div>
+  <p style="margin:6px 0 0">"Gateway'i, bilgisayarda canlı duran, çeşitli agent'ların istediğinde bağlanıp araçları
+  kullandığı bir toolkit yapabilir miyiz?" — <strong>Evet.</strong> Mimari buna hazır; lazy-activate sayesinde en zor kısım
+  zaten çözülmüş. Geriye transport'u HTTP'ye taşımak, küçük "görünüm" katmanını oturuma çekmek ve daemon'u systemd
+  ile kalıcı kılmak kalıyor. Hiçbir aşama mevcut stdio kullanımını bozmadan, parça parça yapılabilir.</p>
+</div>
+
+<div class="foot">~/mcp-servers/gateway · advanced-gateway-design.html · Claude Opus 4.8</div>
+
+</div>
+</body>
+</html>

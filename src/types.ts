@@ -6,6 +6,8 @@ export interface ServiceConfig {
   args: string[];
   env?: Record<string, string>;
   autoActivate?: boolean;
+  /** Always-on: respawn with backoff if the process crashes (for stateful singletons). */
+  keepAlive?: boolean;
   groups?: Record<string, string[]>;
 }
 

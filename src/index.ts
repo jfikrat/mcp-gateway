@@ -2,9 +2,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { loadConfig } from "./config.js";
-import { ToolRegistry } from "./registry.js";
 import { ChildManager } from "./child-manager.js";
-import { createGatewayServer } from "./server-factory.js";
+import { createGatewaySession } from "./server-factory.js";
 import { startHttpServer } from "./http-server.js";
 import type { GatewayConfig } from "./types.js";
 
@@ -23,14 +22,11 @@ try {
 } catch {}
 
 const config = loadConfig();
-const registry = new ToolRegistry();
 
-// --- stdio mode (default, unchanged): one client per gateway process ---
-async function startStdio(config: GatewayConfig, registry: ToolRegistry): Promise<void> {
-  let notify = () => {};
-  const manager = new ChildManager(config.services, registry, () => notify());
-  const server = createGatewayServer(registry, manager);
-  notify = () => server.sendToolListChanged();
+// --- stdio mode (default, unchanged): one client, one session ---
+async function startStdio(config: GatewayConfig): Promise<void> {
+  const manager = new ChildManager(config.services);
+  const { server } = createGatewaySession(manager, "stdio");
 
   const shutdown = async () => {
     await manager.shutdown();
@@ -51,14 +47,14 @@ async function startStdio(config: GatewayConfig, registry: ToolRegistry): Promis
     : config.services.filter((s) => s.autoActivate);
   if (auto.length > 0) {
     process.stderr.write(`[gateway] Auto-activating: ${auto.map((s) => s.name).join(", ")}\n`);
-    await Promise.allSettled(auto.map((s) => manager.activate(s.name)));
+    await Promise.allSettled(auto.map((s) => manager.warmup(s.name)));
   }
 }
 
 // GATEWAY_HTTP_PORT set → always-on shared HTTP daemon; otherwise stdio.
 const httpPort = process.env.GATEWAY_HTTP_PORT;
 if (httpPort) {
-  await startHttpServer({ services: config.services, registry, port: Number(httpPort) });
+  await startHttpServer({ services: config.services, port: Number(httpPort) });
 } else {
-  await startStdio(config, registry);
+  await startStdio(config);
 }

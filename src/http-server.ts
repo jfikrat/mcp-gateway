@@ -1,13 +1,13 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { ToolRegistry } from "./registry.js";
 import { ChildManager } from "./child-manager.js";
-import { createGatewayServer } from "./server-factory.js";
-import type { ServiceConfig } from "./types.js";
+import { createGatewaySession } from "./server-factory.js";
+import type { ServiceConfig, SessionCtx } from "./types.js";
 
 interface Session {
   transport: WebStandardStreamableHTTPServerTransport;
   server: Server;
+  ctx: SessionCtx;
 }
 
 function isInitialize(body: unknown): boolean {
@@ -19,46 +19,28 @@ function isInitialize(body: unknown): boolean {
 /**
  * Run the gateway as an always-on HTTP daemon.
  *
- * A single global ChildManager is shared across every connected session, so the
- * child MCP services (whatsapp, helm, …) stay warm and are shared between agents
- * — connect once, the toolkit is already live. Each session gets its own MCP
- * Server + Streamable HTTP transport keyed by Mcp-Session-Id.
- *
- * NOTE (Stage 1): the ToolRegistry (full-mode schema injection) is still global,
- * so a `lazy=false` activate would surface schemas to every session. That's fine
- * while always-on services run lazy (0 schemas). Per-session view isolation is
- * Stage 2.
+ * One global ChildManager is shared across every connected session, so the
+ * child MCP services (whatsapp, helm, …) stay warm and shared between agents —
+ * connect once, the toolkit is already live. Each session gets its own MCP
+ * Server + private view (SessionCtx) keyed by Mcp-Session-Id, so full-mode
+ * schema injection is isolated per agent.
  */
 export async function startHttpServer(opts: {
   services: ServiceConfig[];
-  registry: ToolRegistry;
   port: number;
   host?: string;
 }): Promise<ChildManager> {
-  const { services, registry, port, host = "127.0.0.1" } = opts;
+  const { services, port, host = "127.0.0.1" } = opts;
 
   const sessions = new Map<string, Session>();
-  const sessionServers = new Set<Server>();
-
-  // One shared manager; tool-list changes fan out to every connected session.
-  const manager = new ChildManager(services, registry, () => {
-    for (const s of sessionServers) {
-      try {
-        s.sendToolListChanged();
-      } catch {
-        // a session may be tearing down; ignore
-      }
-    }
-  });
+  const manager = new ChildManager(services);
 
   async function handleMcp(req: Request): Promise<Response> {
     const sid = req.headers.get("mcp-session-id") ?? undefined;
 
     if (sid) {
       const session = sessions.get(sid);
-      if (!session) {
-        return new Response("Session not found", { status: 404 });
-      }
+      if (!session) return new Response("Session not found", { status: 404 });
       return await session.transport.handleRequest(req);
     }
 
@@ -72,19 +54,18 @@ export async function startHttpServer(opts: {
       }
 
       if (isInitialize(body)) {
-        const server = createGatewayServer(registry, manager);
+        const { server, ctx } = createGatewaySession(manager, crypto.randomUUID());
         const transport = new WebStandardStreamableHTTPServerTransport({
           sessionIdGenerator: () => crypto.randomUUID(),
           onsessioninitialized: (id) => {
-            sessions.set(id, { transport, server });
+            sessions.set(id, { transport, server, ctx });
             process.stderr.write(`[gateway] session opened: ${id} (${sessions.size} active)\n`);
           },
         });
         transport.onclose = () => {
           if (transport.sessionId) sessions.delete(transport.sessionId);
-          sessionServers.delete(server);
+          manager.removeSession(ctx);
         };
-        sessionServers.add(server);
         await server.connect(transport);
         return await transport.handleRequest(req, { parsedBody: body });
       }
@@ -145,7 +126,7 @@ export async function startHttpServer(opts: {
     : services.filter((s) => s.autoActivate);
   if (auto.length > 0) {
     process.stderr.write(`[gateway] Auto-activating: ${auto.map((s) => s.name).join(", ")}\n`);
-    await Promise.allSettled(auto.map((s) => manager.activate(s.name)));
+    await Promise.allSettled(auto.map((s) => manager.warmup(s.name)));
   } else if (process.env.GATEWAY_NO_AUTOACTIVATE) {
     process.stderr.write(`[gateway] autoActivate skipped (GATEWAY_NO_AUTOACTIVATE)\n`);
   }

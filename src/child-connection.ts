@@ -77,7 +77,9 @@ export class ChildConnection {
     }
     // Max safe setTimeout value (2^31 - 1 ms ≈ 24.8 days)
     // Note: Infinity causes setTimeout to overflow to 1ms in JS runtimes
-    return await this.client.callTool({ name, arguments: resolved }, undefined, { timeout: 2_147_483_647 });
+    return (await this.client.callTool({ name, arguments: resolved }, undefined, {
+      timeout: 2_147_483_647,
+    })) as CallToolResult;
   }
 
   async ping(): Promise<boolean> {

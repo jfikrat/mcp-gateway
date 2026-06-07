@@ -39,7 +39,7 @@ export class ChildManager {
       if (set.delete(ctx.id) && set.size === 0) {
         const st = this.states.get(name);
         if (st && st.status === "active" && !st.config.keepAlive) {
-          void this.stopProcess(name);
+          this.stopProcess(name).catch(() => {});
         }
       }
     }
@@ -74,7 +74,7 @@ export class ChildManager {
     if (!lock) {
       lock = this.spawn(name);
       this.spawnLocks.set(name, lock);
-      void lock.finally(() => this.spawnLocks.delete(name));
+      lock.finally(() => this.spawnLocks.delete(name)).catch(() => {});
     }
     return await lock;
   }

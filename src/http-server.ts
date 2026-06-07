@@ -138,10 +138,16 @@ export async function startHttpServer(opts: {
   process.on("SIGTERM", shutdown);
 
   // Warm the always-on services once, at daemon start (shared by all sessions).
-  const auto = services.filter((s) => s.autoActivate);
+  // GATEWAY_NO_AUTOACTIVATE skips this — e.g. a safe boot-test that must not
+  // spawn stateful singletons that are already running elsewhere.
+  const auto = process.env.GATEWAY_NO_AUTOACTIVATE
+    ? []
+    : services.filter((s) => s.autoActivate);
   if (auto.length > 0) {
     process.stderr.write(`[gateway] Auto-activating: ${auto.map((s) => s.name).join(", ")}\n`);
     await Promise.allSettled(auto.map((s) => manager.activate(s.name)));
+  } else if (process.env.GATEWAY_NO_AUTOACTIVATE) {
+    process.stderr.write(`[gateway] autoActivate skipped (GATEWAY_NO_AUTOACTIVATE)\n`);
   }
 
   return manager;

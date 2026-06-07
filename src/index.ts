@@ -46,7 +46,9 @@ async function startStdio(config: GatewayConfig, registry: ToolRegistry): Promis
     `[gateway] Started (stdio) — ${config.services.length} services registered\n`
   );
 
-  const auto = config.services.filter((s) => s.autoActivate);
+  const auto = process.env.GATEWAY_NO_AUTOACTIVATE
+    ? []
+    : config.services.filter((s) => s.autoActivate);
   if (auto.length > 0) {
     process.stderr.write(`[gateway] Auto-activating: ${auto.map((s) => s.name).join(", ")}\n`);
     await Promise.allSettled(auto.map((s) => manager.activate(s.name)));

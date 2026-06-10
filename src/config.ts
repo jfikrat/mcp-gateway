@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "fs";
+import { readFileSync, writeFileSync, renameSync } from "fs";
 import { resolve, dirname } from "path";
 import type { GatewayConfig } from "./types.js";
 
@@ -6,11 +6,14 @@ export const CONFIG_PATH = process.env.GATEWAY_CONFIG
   ? resolve(process.env.GATEWAY_CONFIG)
   : resolve(dirname(import.meta.dir), "gateway.config.json");
 
+/** Write-to-temp + rename: readers never observe a torn config file. */
 export function saveConfig(config: GatewayConfig): void {
-  writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n");
+  const tmp = `${CONFIG_PATH}.tmp`;
+  writeFileSync(tmp, JSON.stringify(config, null, 2) + "\n");
+  renameSync(tmp, CONFIG_PATH);
 }
 
-function expandEnvVars(value: string): string {
+export function expandEnvVars(value: string): string {
   return value.replace(/\$\{(\w+)\}|\$(\w+)/g, (_, a, b) => {
     return process.env[a || b] ?? "";
   });

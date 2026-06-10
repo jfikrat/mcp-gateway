@@ -62,6 +62,8 @@ bun run start
 | `args` | no | `[]` | Command arguments |
 | `env` | no | `{}` | Environment variables (supports `$VAR` expansion) |
 | `autoActivate` | no | `false` | Start automatically on gateway launch |
+| `keepAlive` | no | `false` | Always-on: respawn with exponential backoff on crash; never GC'd when idle |
+| `groups` | no | — | Named tool subsets for full-mode activation, e.g. `{"gmail": ["send", "search"]}` |
 
 ### Environment Variables
 
@@ -109,6 +111,32 @@ If you want tool schemas injected into the LLM context (traditional MCP behavior
 ```
 activate({name: "my-service", lazy: false})              → register all schemas
 activate({name: "my-service", lazy: false, groups: ["gmail", "drive"]})  → register specific groups
+```
+
+## HTTP Daemon Mode (always-on, shared)
+
+Set `GATEWAY_HTTP_PORT` to run the gateway as a long-lived Streamable HTTP daemon instead of per-client stdio:
+
+```bash
+GATEWAY_HTTP_PORT=8770 bun run start
+```
+
+- **Endpoint**: `http://127.0.0.1:8770/mcp` (Streamable HTTP, `Mcp-Session-Id` per client)
+- **Health**: `GET /health` returns JSON with session count and per-service status/pid
+- **Shared processes, isolated views**: child services are spawned once and shared by every connected client; each session keeps its own tool registry, so one agent's full-mode activation never leaks into another's context
+- **Session GC**: sessions idle longer than the TTL are swept automatically (clients often exit without sending DELETE). Tune with `GATEWAY_SESSION_TTL_MS` (default 60 min) and `GATEWAY_SESSION_SWEEP_MS` (default 5 min)
+- **Safe boot**: `GATEWAY_NO_AUTOACTIVATE=1` skips `autoActivate` services (e.g. when stateful singletons are already running elsewhere)
+
+A systemd unit is provided in `deploy/mcp-gateway.service`.
+
+Point Claude Code (or any MCP client) at the daemon:
+
+```json
+{
+  "mcpServers": {
+    "gateway": { "type": "http", "url": "http://127.0.0.1:8770/mcp" }
+  }
+}
 ```
 
 ## Using with Claude Code

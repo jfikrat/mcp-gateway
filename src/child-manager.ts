@@ -1,7 +1,7 @@
 import type { Tool, CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { ServiceConfig, ServiceState, GatewayConfig, SessionCtx } from "./types.js";
 import { ChildConnection } from "./child-connection.js";
-import { CONFIG_PATH, saveConfig } from "./config.js";
+import { CONFIG_PATH, saveConfig, expandEnvVars } from "./config.js";
 import { readFileSync } from "fs";
 
 type SpawnResult = { ok: true; allTools: Tool[] } | { ok: false; error: string };
@@ -90,7 +90,11 @@ export class ChildManager {
         if (s && s.status === "active") {
           s.status = "error";
           s.error = "Process exited unexpectedly";
+          s.allTools = [];
           this.connections.delete(name);
+          // keepAlive keeps its refs (sessions resume after restart);
+          // a non-keepAlive crash drops them so GC state stays consistent.
+          if (!s.config.keepAlive) this.refs.delete(name);
           this.purgeFromSessions(name);
           process.stderr.write(`[gateway] ${name} crashed\n`);
           if (s.config.keepAlive) this.scheduleKeepAliveRestart(name);
@@ -309,21 +313,19 @@ export class ChildManager {
   }
 
   async health(): Promise<CallToolResult> {
-    const results: string[] = [];
-    for (const [name, state] of this.states) {
-      if (state.status !== "active") {
-        results.push(`${name}: ${state.status}${state.error ? ` (${state.error})` : ""}`);
-        continue;
-      }
-      const conn = this.connections.get(name);
-      if (!conn) {
-        results.push(`${name}: error (no connection)`);
-        continue;
-      }
-      const healthy = await conn.ping();
-      const n = this.refs.get(name)?.size ?? 0;
-      results.push(`${name}: ${healthy ? "healthy" : "unhealthy"} (pid: ${conn.pid ?? "?"}, ${n} session${n === 1 ? "" : "s"})`);
-    }
+    // Ping in parallel — a single hung child must not stall the whole report.
+    const results = await Promise.all(
+      Array.from(this.states).map(async ([name, state]) => {
+        if (state.status !== "active") {
+          return `${name}: ${state.status}${state.error ? ` (${state.error})` : ""}`;
+        }
+        const conn = this.connections.get(name);
+        if (!conn) return `${name}: error (no connection)`;
+        const healthy = await conn.ping();
+        const n = this.refs.get(name)?.size ?? 0;
+        return `${name}: ${healthy ? "healthy" : "unhealthy"} (pid: ${conn.pid ?? "?"}, ${n} session${n === 1 ? "" : "s"})`;
+      })
+    );
     return { content: [{ type: "text", text: results.join("\n") || "no active services" }] };
   }
 
@@ -422,6 +424,8 @@ export class ChildManager {
         if (this.states.has(name)) {
           return { content: [{ type: "text", text: `Service "${name}" already exists` }], isError: true };
         }
+        // Raw config goes to disk ($VAR stays unexpanded — no secrets persisted);
+        // the in-memory state gets the expanded copy, same as loadConfig does.
         const newConfig: ServiceConfig = {
           name,
           command,
@@ -429,7 +433,14 @@ export class ChildManager {
           env: (args?.env as Record<string, string>) ?? {},
           autoActivate: false,
         };
-        this.states.set(name, { config: newConfig, status: "inactive", allTools: [] });
+        const liveConfig: ServiceConfig = {
+          ...newConfig,
+          args: newConfig.args.map(expandEnvVars),
+          env: Object.fromEntries(
+            Object.entries(newConfig.env ?? {}).map(([k, v]) => [k, expandEnvVars(v)])
+          ),
+        };
+        this.states.set(name, { config: liveConfig, status: "inactive", allTools: [] });
 
         const raw = JSON.parse(readFileSync(CONFIG_PATH, "utf-8")) as GatewayConfig;
         raw.services.push(newConfig);
@@ -468,14 +479,8 @@ export class ChildManager {
       case "call": {
         const service = args?.service as string;
         const tool = args?.tool as string;
-        let toolArgs = (args?.args as Record<string, unknown>) ?? {};
-        if (typeof toolArgs === "string") {
-          try {
-            toolArgs = JSON.parse(toolArgs);
-          } catch {
-            // keep as-is
-          }
-        }
+        // string args are normalized inside ChildConnection.callTool
+        const toolArgs = (args?.args as Record<string, unknown>) ?? {};
         if (!service || !tool) {
           return { content: [{ type: "text", text: "Both 'service' and 'tool' are required" }], isError: true };
         }
@@ -498,6 +503,10 @@ export class ChildManager {
         if (!conn) {
           return { content: [{ type: "text", text: `No connection for service "${service}"` }], isError: true };
         }
+        // The caller depends on this service now, even if another session
+        // activated it — without a ref, that session's exit would stop the
+        // process out from under us.
+        this.addRef(service, ctx.id);
         return await conn.callTool(tool, toolArgs);
       }
 

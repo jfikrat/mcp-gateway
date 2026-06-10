@@ -7,17 +7,25 @@ import { createGatewaySession } from "./server-factory.js";
 import { startHttpServer } from "./http-server.js";
 import type { GatewayConfig } from "./types.js";
 
-// Load gateway .env into process.env (before any child spawns)
+// Load gateway .env into process.env (before any child spawns).
+// Supports `export KEY=...` and single/double-quoted values.
 try {
   const envPath = join(import.meta.dir, "..", ".env");
   for (const line of readFileSync(envPath, "utf-8").split("\n")) {
-    const t = line.trim();
-    if (t && !t.startsWith("#")) {
-      const i = t.indexOf("=");
-      if (i > 0 && !process.env[t.slice(0, i)]) {
-        process.env[t.slice(0, i)] = t.slice(i + 1).trim();
-      }
+    let t = line.trim();
+    if (!t || t.startsWith("#")) continue;
+    if (t.startsWith("export ")) t = t.slice(7).trim();
+    const i = t.indexOf("=");
+    if (i <= 0) continue;
+    const key = t.slice(0, i).trim();
+    let value = t.slice(i + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"') && value.length >= 2) ||
+      (value.startsWith("'") && value.endsWith("'") && value.length >= 2)
+    ) {
+      value = value.slice(1, -1);
     }
+    if (!process.env[key]) process.env[key] = value;
   }
 } catch {}
 

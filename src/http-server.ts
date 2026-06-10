@@ -8,6 +8,7 @@ interface Session {
   transport: WebStandardStreamableHTTPServerTransport;
   server: Server;
   ctx: SessionCtx;
+  lastActivity: number;
 }
 
 function isInitialize(body: unknown): boolean {
@@ -29,7 +30,7 @@ export async function startHttpServer(opts: {
   services: ServiceConfig[];
   port: number;
   host?: string;
-}): Promise<ChildManager> {
+}): Promise<{ manager: ChildManager; port: number; stop: () => void }> {
   const { services, port, host = "127.0.0.1" } = opts;
 
   const sessions = new Map<string, Session>();
@@ -41,6 +42,7 @@ export async function startHttpServer(opts: {
     if (sid) {
       const session = sessions.get(sid);
       if (!session) return new Response("Session not found", { status: 404 });
+      session.lastActivity = Date.now();
       return await session.transport.handleRequest(req);
     }
 
@@ -58,12 +60,16 @@ export async function startHttpServer(opts: {
         const transport = new WebStandardStreamableHTTPServerTransport({
           sessionIdGenerator: () => crypto.randomUUID(),
           onsessioninitialized: (id) => {
-            sessions.set(id, { transport, server, ctx });
+            sessions.set(id, { transport, server, ctx, lastActivity: Date.now() });
             process.stderr.write(`[gateway] session opened: ${id} (${sessions.size} active)\n`);
           },
         });
         transport.onclose = () => {
-          if (transport.sessionId) sessions.delete(transport.sessionId);
+          if (transport.sessionId && sessions.delete(transport.sessionId)) {
+            process.stderr.write(
+              `[gateway] session closed: ${transport.sessionId} (${sessions.size} active)\n`
+            );
+          }
           manager.removeSession(ctx);
         };
         await server.connect(transport);
@@ -83,7 +89,7 @@ export async function startHttpServer(opts: {
     return new Response("Invalid or missing session ID", { status: 400 });
   }
 
-  Bun.serve({
+  const httpServer = Bun.serve({
     port,
     hostname: host,
     idleTimeout: 0, // keep long-lived SSE streams open
@@ -109,9 +115,35 @@ export async function startHttpServer(opts: {
     },
   });
 
-  process.stderr.write(`[gateway] HTTP daemon listening on http://${host}:${port}/mcp\n`);
+  process.stderr.write(
+    `[gateway] HTTP daemon listening on http://${host}:${httpServer.port}/mcp\n`
+  );
+
+  // Idle session GC: clients (Claude Code, Codex) often exit without sending
+  // DELETE, so sessions — and the service refs they hold — would otherwise
+  // accumulate forever. Sweep sessions idle longer than the TTL.
+  const sessionTtl = Number(process.env.GATEWAY_SESSION_TTL_MS) || 60 * 60_000;
+  const sweepEvery = Number(process.env.GATEWAY_SESSION_SWEEP_MS) || 5 * 60_000;
+  const sweeper = setInterval(() => {
+    const now = Date.now();
+    for (const [id, session] of sessions) {
+      if (now - session.lastActivity <= sessionTtl) continue;
+      sessions.delete(id);
+      manager.removeSession(session.ctx);
+      session.transport.close().catch(() => {});
+      process.stderr.write(
+        `[gateway] session expired after ${Math.round((now - session.lastActivity) / 60_000)}m idle: ${id} (${sessions.size} active)\n`
+      );
+    }
+  }, sweepEvery);
+
+  const stop = () => {
+    clearInterval(sweeper);
+    httpServer.stop(true);
+  };
 
   const shutdown = async () => {
+    stop();
     await manager.shutdown();
     process.exit(0);
   };
@@ -131,5 +163,5 @@ export async function startHttpServer(opts: {
     process.stderr.write(`[gateway] autoActivate skipped (GATEWAY_NO_AUTOACTIVATE)\n`);
   }
 
-  return manager;
+  return { manager, port: httpServer.port ?? port, stop };
 }

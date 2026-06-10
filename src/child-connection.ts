@@ -84,7 +84,8 @@ export class ChildConnection {
 
   async ping(): Promise<boolean> {
     try {
-      await this.client.ping();
+      // Short timeout: a hung child reports unhealthy instead of stalling health checks.
+      await this.client.ping({ timeout: 5_000 });
       return true;
     } catch {
       return false;
